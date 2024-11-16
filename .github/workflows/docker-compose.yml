@@ -1,1 +1,18 @@
-# Docker Compose
+version: '3.8'
+
+services:
+  prcybr-pr-cybr-testing-agent:
+    image: pr-cybr/pr-cybr-testing-agent:latest
+    container_name: pr-cybr-testing-agent
+    env_file: .env # Load environment variables from .env file
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    networks:
+      - pr-cybr-net
+    ports:
+      - "8080:80" # Adjust this port as necessary for your Agent
+
+networks:
+  pr-cybr-net:
+    driver: bridge

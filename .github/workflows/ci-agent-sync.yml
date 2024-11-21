@@ -1,1 +1,31 @@
+name: CI Agent Sync
 
+on:
+  workflow_dispatch: # This can also be replaced with other events like push, pull_request etc.
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Set up Docker
+        uses: docker/setup-buildx-action@v1
+
+      - name: Download global config files
+        run: |
+          mkdir -p config/shared
+          curl -o config/shared/global-config.json https://raw.githubusercontent.com/PR-CYBR/PR-CYBR-MGMT-AGENT/main/config/shared/global-config.json
+          # Add more curl commands if you need to download other config files
+
+      - name: Verify global config files
+        run: |
+          # Example verification step
+          jq empty config/shared/global-config.json || echo "Invalid JSON in global-config.json"
+
+      - name: Run test workflows script
+        run: |
+          chmod +x ./scripts/test-workflows.sh
+          ./scripts/test-workflows.sh

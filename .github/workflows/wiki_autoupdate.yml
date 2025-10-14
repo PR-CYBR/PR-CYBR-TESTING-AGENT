@@ -1,0 +1,91 @@
+name: Wiki Auto Update
+
+on:
+  repository_dispatch:
+    types:
+      - wiki-autoupdate
+  workflow_dispatch:
+    inputs:
+      wiki_ref:
+        description: 'Optional wiki reference or branch to sync'
+        required: false
+
+env:
+  SECURITY_DISCUSSION_NUMBER: ${{ vars.SECURITY_DISCUSSION_NUMBER || secrets.SECURITY_DISCUSSION_NUMBER }}
+  REQUESTED_WIKI_REF: ${{ (github.event_name == 'repository_dispatch' && github.event.client_payload.wiki_ref) || github.event.inputs.wiki_ref || 'master' }}
+
+jobs:
+  wiki-sync:
+    name: Sync project wiki content
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Checkout wiki repository
+        id: checkout_wiki
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository }}.wiki
+          path: wiki
+          ref: ${{ env.REQUESTED_WIKI_REF }}
+
+      - name: Update wiki content
+        id: update
+        run: |
+          echo "Updating wiki content from automation trigger"
+          if [ -d docs/wiki ]; then
+            rsync -av --delete docs/wiki/ wiki/
+          else
+            echo "No docs/wiki directory found; skipping file sync."
+          fi
+          echo "wiki_ref=$REQUESTED_WIKI_REF" >> "$GITHUB_OUTPUT"
+
+      - name: Commit and push changes
+        id: commit
+        run: |
+          cd wiki
+          if git status --porcelain | grep -q .; then
+            git config user.name "github-actions"
+            git config user.email "github-actions@users.noreply.github.com"
+            git add .
+            git commit -m "Automated wiki update from workflow run $GITHUB_RUN_ID"
+            git push
+          else
+            echo "No wiki changes detected."
+          fi
+
+      - name: Post wiki update summary to Security & Compliance board
+        if: ${{ always() }}
+        uses: actions/github-script@v7
+        env:
+          CHECKOUT_OUTCOME: ${{ steps.checkout_wiki.outcome }}
+          UPDATE_OUTCOME: ${{ steps.update.outcome }}
+          COMMIT_OUTCOME: ${{ steps.commit.outcome }}
+          WIKI_REF: ${{ steps.update.outputs.wiki_ref }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const discussionNumber = process.env.SECURITY_DISCUSSION_NUMBER;
+            if (!discussionNumber) {
+              core.setFailed('SECURITY_DISCUSSION_NUMBER is not configured.');
+              return;
+            }
+
+            const summary = [
+              `**Workflow**: ${context.workflow}`,
+              `**Run URL**: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+              `**Event**: ${context.eventName}`,
+              `**Wiki ref**: ${process.env.WIKI_REF || 'master'}`,
+              '',
+              `- Wiki checkout: ${process.env.CHECKOUT_OUTCOME || 'unknown'}`,
+              `- Wiki update: ${process.env.UPDATE_OUTCOME || 'unknown'}`,
+              `- Wiki commit: ${process.env.COMMIT_OUTCOME || 'unknown'}`
+            ];
+
+            await github.rest.discussions.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              discussion_number: Number(discussionNumber),
+              body: summary.join('\n')
+            });

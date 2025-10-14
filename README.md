@@ -1,125 +1,56 @@
-<!--
-Updates that need to be made:
-1. 
--->
-
 # PR-CYBR-TESTING-AGENT
 
 ## Overview
+The **PR-CYBR Testing Agent** orchestrates quality signals across the PR-CYBR platform. It continuously evaluates integrations, aggregates telemetry, and coordinates with human operators when automation limits are reached.
 
-The **PR-CYBR-TESTING-AGENT** ensures the quality and reliability of the PR-CYBR ecosystem by providing automated and comprehensive testing capabilities. It is designed to validate functionality, performance, and integration across all agents and systems.
+## Workflow Architecture
+- **Continuous Verification Pipeline:** GitHub Actions workflows dispatch unit, integration, and regression suites on every pull request. Results are published to the shared event bus for downstream consumers.
+- **Nightly Synchronization Cycle:** A timed job reconciles test artifacts with the CI/CD, Security, and Performance agents to refresh the cross-agent test matrix and highlight drift.
+- **Release Readiness Gate:** Before deployments, the agent validates compliance thresholds, checks open defect SLAs, and signals the Deployment Coordinator via the dashboard webhook.
+- **HITL Escalation Loop:** When anomalies exceed automated remediation rules, incident context is handed off to the HITL Response Playbook with live dashboard annotations.
 
-## Key Features
+## Automation Hooks
+- **`automation_hooks.yml`:** Defines webhook subscriptions for build events, security advisories, and performance regressions.
+- **Scripted Utilities:**
+  - `./scripts/sync_now.sh` for on-demand synchronization.
+  - `./scripts/provision_agent.sh` to bootstrap secrets, dashboards, and shared queues.
+  - `./scripts/run_dashboard.sh` to launch the local dashboard experience.
+- **Notification Integrations:** Slack and email channels are configured through GitHub Secrets (`SLACK_WEBHOOK_URL`, `STATUS_EMAIL_LIST`).
 
-- **Automated Testing**: Executes unit tests, integration tests, and performance benchmarks automatically.
-- **Continuous Validation**: Integrates with CI/CD workflows to enforce quality checks on every commit or pull request.
-- **Cross-Agent Compatibility**: Tests interdependencies and interactions across multiple agents.
-- **Customizable Test Suites**: Allows developers to define and extend test cases as per project requirements.
-- **Detailed Reporting**: Generates comprehensive reports on test results, including failures and coverage metrics.
+## Dashboard Usage
+- **Command Center:** Displays pass/fail trends, synchronization status, and outstanding escalations.
+- **HITL Controls:** Operators can pause automation, rerun specific suites, or attach mitigation notes directly from the dashboard.
+- **Widget Library:** Includes test coverage heatmaps, pipeline throughput charts, and cross-agent dependency maps.
+- **Audit Trail:** Every override or manual intervention is logged and traceable back to the initiating operator.
 
 ## Getting Started
-
-### Prerequisites
-
-- **Git**: For cloning the repository.
-- **Python 3.8+**: Required for running scripts.
-- **Docker**: Required for containerization and deployment.
-- **Access to GitHub Actions**: For automated workflows.
-
-### Local Setup
-
-To set up the `PR-CYBR-TESTING-AGENT` locally on your machine:
-
 1. **Clone the Repository**
-
-```bash
-git clone https://github.com/PR-CYBR/PR-CYBR-TESTING-AGENT.git
-cd PR-CYBR-TESTING-AGENT
-```
-
-2. **Run Local Setup Script**
-
-```bash
-./scripts/local_setup.sh
-```
-_This script will install necessary dependencies and set up the local environment._
-
+   ```bash
+   git clone https://github.com/PR-CYBR/PR-CYBR-TESTING-AGENT.git
+   cd PR-CYBR-TESTING-AGENT
+   ```
+2. **Run Local Setup**
+   ```bash
+   ./scripts/local_setup.sh
+   ```
 3. **Provision the Agent**
+   ```bash
+   ./scripts/provision_agent.sh
+   ```
+4. **Launch the Dashboard**
+   ```bash
+   ./scripts/run_dashboard.sh
+   ```
 
-```bash
-./scripts/provision_agent.sh
-```
-_This script configures the agent with default settings for local development._
+## Deployment
+- Configure secrets (`CLOUD_API_KEY`, `DOCKERHUB_USERNAME`, `DOCKERHUB_PASSWORD`, `SYNC_API_TOKEN`) in GitHub Actions.
+- Push changes to trigger the Docker Compose workflow located in `.github/workflows/docker-compose.yml`.
+- Manual deployments are supported through `./scripts/deploy_agent.sh` when cloud CLI access is available.
 
-### Cloud Deployment
-
-To deploy the agent to a cloud environment:
-
-1. **Configure Repository Secrets**
-
-- Navigate to `Settings` > `Secrets and variables` > `Actions` in your GitHub repository.
-- Add the required secrets:
-   - `CLOUD_API_KEY`
-   - `DOCKERHUB_USERNAME`
-   - `DOCKERHUB_PASSWORD`
-   - Any other cloud-specific credentials.
-
-2. **Deploy Using GitHub Actions**
-
-- The deployment workflow is defined in `.github/workflows/docker-compose.yml`.
-- Push changes to the `main` branch to trigger the deployment workflow automatically.
-
-3. **Manual Deployment**
-
-- Use the deployment script for manual deployment:
-
-```bash
-./scripts/deploy_agent.sh
-```
-
-- Ensure you have Docker and cloud CLI tools installed and configured on your machine.
-
-## Integration
-
-The `PR-CYBR-TESTING-AGENT` integrates with other PR-CYBR agents to provide comprehensive testing across the ecosystem. It works closely with:
-
-- **PR-CYBR-CI-CD-AGENT**: Integrates into the CI/CD pipeline to run tests on each build.
-- **PR-CYBR-BACKEND-AGENT** and **PR-CYBR-FRONTEND-AGENT**: Executes tests on backend and frontend codebases.
-- **PR-CYBR-SECURITY-AGENT**: Collaborates to include security tests in the test suites.
-- **PR-CYBR-PERFORMANCE-AGENT**: Works together for performance testing and benchmarking.
-
-## Usage
-
-- **Development**
-
-  - Run tests locally:
-
-```bash
-python -m unittest discover tests
-```
-
-  - Add or modify test cases in the `tests/` directory.
-
-- **Testing**
-
-  - Execute specific test suites:
-
-```bash
-python -m unittest tests/test_suite_name.py
-```
-
-- **Building for Production**
-
-  - Build the agent for production use:
-
-```bash
-python setup.py install
-```
+## Documentation & Support
+- Review synchronization details, automation hooks, and dashboard walkthroughs in `docs/README.md`.
+- Navigate the broader wiki using `docs/WIKI_MAP.md`.
+- Consult `docs/system-diagrams.md` for visual workflow references.
 
 ## License
-
 This project is licensed under the **MIT License**. See the [`LICENSE`](LICENSE) file for details.
-
----
-
-For more information, refer to the [PR-CYBR Documentation](https://github.com/PR-CYBR/PR-CYBR-TESTING-AGENT/Wiki) or contact the PR-CYBR team.

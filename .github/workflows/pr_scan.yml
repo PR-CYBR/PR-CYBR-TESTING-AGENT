@@ -1,0 +1,91 @@
+name: Pull Request Security Scan
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  SECURITY_DISCUSSION_NUMBER: ${{ vars.SECURITY_DISCUSSION_NUMBER || secrets.SECURITY_DISCUSSION_NUMBER }}
+
+jobs:
+  pr-security-audit:
+    name: Security audit for pull requests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run secret scan
+        id: secret_scan
+        uses: gitleaks/gitleaks-action@v2
+        with:
+          args: detect --source=. --no-banner --redact
+
+      - name: Run dependency vulnerability scan
+        id: dependency_scan
+        uses: aquasecurity/trivy-action@0.20.0
+        with:
+          scan-type: fs
+          format: table
+          ignore-unfixed: true
+          vuln-type: os,library
+          severity: CRITICAL,HIGH,MEDIUM
+          exit-code: '1'
+
+      - name: Run container security scan
+        id: container_scan
+        uses: aquasecurity/trivy-action@0.20.0
+        with:
+          scan-type: config
+          format: table
+          ignore-unfixed: true
+          severity: CRITICAL,HIGH,MEDIUM
+          exit-code: '1'
+
+      - name: Post PR security summary to Security & Compliance board
+        if: ${{ always() }}
+        uses: actions/github-script@v7
+        env:
+          SECRET_SCAN_OUTCOME: ${{ steps.secret_scan.outcome }}
+          SECRET_SCAN_CONCLUSION: ${{ steps.secret_scan.conclusion }}
+          DEP_SCAN_OUTCOME: ${{ steps.dependency_scan.outcome }}
+          DEP_SCAN_CONCLUSION: ${{ steps.dependency_scan.conclusion }}
+          CONT_SCAN_OUTCOME: ${{ steps.container_scan.outcome }}
+          CONT_SCAN_CONCLUSION: ${{ steps.container_scan.conclusion }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const discussionNumber = process.env.SECURITY_DISCUSSION_NUMBER;
+            if (!discussionNumber) {
+              core.setFailed('SECURITY_DISCUSSION_NUMBER is not configured.');
+              return;
+            }
+
+            const prInfo = process.env.PR_NUMBER
+              ? `PR #${process.env.PR_NUMBER}: ${process.env.PR_TITLE}`
+              : 'Manual dispatch (no PR context)';
+
+            const lines = [
+              `**Workflow**: ${context.workflow}`,
+              `**Run URL**: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+              `**Event**: ${context.eventName}`,
+              `**Context**: ${prInfo}`,
+              '',
+              `- Secrets scan: ${process.env.SECRET_SCAN_CONCLUSION || 'unknown'} (outcome: ${process.env.SECRET_SCAN_OUTCOME || 'n/a'})`,
+              `- Dependency vulnerability scan: ${process.env.DEP_SCAN_CONCLUSION || 'unknown'} (outcome: ${process.env.DEP_SCAN_OUTCOME || 'n/a'})`,
+              `- Container security scan: ${process.env.CONT_SCAN_CONCLUSION || 'unknown'} (outcome: ${process.env.CONT_SCAN_OUTCOME || 'n/a'})`
+            ];
+
+            await github.rest.discussions.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              discussion_number: Number(discussionNumber),
+              body: lines.join('\n')
+            });

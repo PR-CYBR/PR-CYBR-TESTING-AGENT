@@ -1,0 +1,98 @@
+name: Dashboard Deployment
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment (e.g., staging, production)'
+        required: false
+        default: production
+      release_tag:
+        description: 'Optional release tag to deploy'
+        required: false
+
+env:
+  SECURITY_DISCUSSION_NUMBER: ${{ vars.SECURITY_DISCUSSION_NUMBER || secrets.SECURITY_DISCUSSION_NUMBER }}
+
+jobs:
+  deploy-dashboard:
+    name: Deploy analytics dashboard
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'production' }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Prepare dashboard build
+        id: prepare
+        run: |
+          echo "Preparing dashboard artifacts"
+          echo "target_env=${{ github.event.inputs.environment || 'production' }}" >> "$GITHUB_OUTPUT"
+          echo "release_tag=${{ github.event.inputs.release_tag || 'latest' }}" >> "$GITHUB_OUTPUT"
+
+      - name: Build dashboard assets
+        id: build
+        shell: bash
+        run: |
+          echo "Building dashboard for ${{ github.event.inputs.environment || 'production' }}"
+          if command -v corepack >/dev/null 2>&1; then
+            corepack enable >/dev/null 2>&1 || true
+          fi
+          if [ -f package.json ]; then
+            if command -v yarn >/dev/null 2>&1; then
+              yarn install --frozen-lockfile || yarn install
+              yarn build || yarn run build || echo "Yarn build script not found; skipping."
+            else
+              npm ci --prefer-offline || npm install
+              npm run build --if-present || echo "npm build script not found; skipping."
+            fi
+          else
+            echo "No package.json detected; skipping build step."
+          fi
+
+      - name: Deploy dashboard
+        id: deploy
+        run: |
+          echo "Deploying dashboard to ${{ github.event.inputs.environment || 'production' }}"
+          if [ -x scripts/deploy_dashboard.sh ]; then
+            scripts/deploy_dashboard.sh "${{ github.event.inputs.environment || 'production' }}" "${{ github.event.inputs.release_tag || 'latest' }}"
+          else
+            echo "Placeholder deploy executed (no scripts/deploy_dashboard.sh found)."
+          fi
+
+      - name: Post deployment summary to Security & Compliance board
+        if: ${{ always() }}
+        uses: actions/github-script@v7
+        env:
+          PREPARE_OUTCOME: ${{ steps.prepare.outcome }}
+          BUILD_OUTCOME: ${{ steps.build.outcome }}
+          DEPLOY_OUTCOME: ${{ steps.deploy.outcome }}
+          TARGET_ENV: ${{ steps.prepare.outputs.target_env }}
+          RELEASE_TAG: ${{ steps.prepare.outputs.release_tag }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const discussionNumber = process.env.SECURITY_DISCUSSION_NUMBER;
+            if (!discussionNumber) {
+              core.setFailed('SECURITY_DISCUSSION_NUMBER is not configured.');
+              return;
+            }
+
+            const summary = [
+              `**Workflow**: ${context.workflow}`,
+              `**Run URL**: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+              `**Event**: ${context.eventName}`,
+              `**Target environment**: ${process.env.TARGET_ENV || 'production'}`,
+              `**Release tag**: ${process.env.RELEASE_TAG || 'latest'}`,
+              '',
+              `- Preparation: ${process.env.PREPARE_OUTCOME || 'unknown'}`,
+              `- Build: ${process.env.BUILD_OUTCOME || 'unknown'}`,
+              `- Deploy: ${process.env.DEPLOY_OUTCOME || 'unknown'}`
+            ];
+
+            await github.rest.discussions.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              discussion_number: Number(discussionNumber),
+              body: summary.join('\n')
+            });

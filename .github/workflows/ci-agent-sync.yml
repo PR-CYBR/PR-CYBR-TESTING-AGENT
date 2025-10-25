@@ -3,9 +3,16 @@ name: CI Agent Sync
 on:
   workflow_dispatch: # This can also be replaced with other events like push, pull_request etc.
 
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest
+    env:
+      NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+      NOTION_AGENT_DATABASE_ID: ${{ secrets.NOTION_AGENT_DATABASE_ID }}
+      NOTION_LOG_DATABASE_ID: ${{ secrets.NOTION_LOG_DATABASE_ID }}
 
     steps:
       - name: Checkout repository

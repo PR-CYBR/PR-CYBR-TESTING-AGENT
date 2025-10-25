@@ -1,1 +1,2 @@
 # Add your Python dependencies here
+notion-client>=2.0.0

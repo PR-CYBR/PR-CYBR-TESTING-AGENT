@@ -1,0 +1,104 @@
+name: Notion Sync
+
+on:
+  issues:
+    types:
+      - opened
+      - edited
+      - reopened
+      - closed
+      - labeled
+      - unlabeled
+      - assigned
+      - unassigned
+  pull_request:
+    types:
+      - opened
+      - edited
+      - reopened
+      - closed
+      - synchronize
+      - labeled
+      - unlabeled
+      - ready_for_review
+  discussion:
+    types:
+      - created
+      - edited
+      - answered
+      - unanswered
+      - deleted
+  project:
+    types:
+      - created
+      - edited
+      - closed
+      - reopened
+      - deleted
+  project_card:
+    types:
+      - created
+      - edited
+      - moved
+      - deleted
+  project_column:
+    types:
+      - created
+      - edited
+      - moved
+      - deleted
+  workflow_run:
+    workflows:
+      - CI Agent Sync
+      - Maintenance
+      - Terraform Cloud Sync
+    types:
+      - completed
+
+permissions:
+  contents: read
+
+jobs:
+  notion-sync:
+    name: Sync with Notion
+    runs-on: ubuntu-latest
+    env:
+      NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
+      NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
+      NOTION_SYNC_CONFIG: ${{ secrets.NOTION_SYNC_CONFIG }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -s requirements.txt ]; then
+            pip install -r requirements.txt
+          fi
+
+      - name: Execute Notion sync
+        uses: nick-invision/retry@v2
+        with:
+          max_attempts: 3
+          retry_on: error
+          command: |
+            python scripts/notion_sync.py --event-path "${GITHUB_EVENT_PATH}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Slack notification on failure
+        if: failure()
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          SLACK_COLOR: '#FF0000'
+          SLACK_MESSAGE: >-
+            Notion sync failed for ${{ github.workflow }} (run ${{ github.run_id }}) on
+            ${{ github.ref }} triggered by ${{ github.event_name }}.

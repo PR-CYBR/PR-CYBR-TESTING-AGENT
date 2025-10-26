@@ -58,16 +58,13 @@ To deploy the agent to a cloud environment:
 1. **Configure Repository Secrets**
 
 - Navigate to `Settings` > `Secrets and variables` > `Actions` in your GitHub repository.
-- Add the required secrets:
-   - `CLOUD_API_KEY`
-   - `DOCKERHUB_USERNAME`
-   - `DOCKERHUB_PASSWORD`
-   - Any other cloud-specific credentials.
+- Add the Terraform Cloud workflow bridge settings described in [`docs/terraform-cloud-bridge.md`](docs/terraform-cloud-bridge.md) so GitHub Actions can trigger runs while Terraform Cloud keeps the sensitive provider credentials.
+- Add any other deployment secrets that remain necessary for non-Terraform workflows (for example, Docker Hub credentials).
 
 2. **Deploy Using GitHub Actions**
 
-- The deployment workflow is defined in `.github/workflows/docker-compose.yml`.
-- Push changes to the `main` branch to trigger the deployment workflow automatically.
+- Infrastructure changes are handled by the Terraform Cloud bridge workflows in `.github/workflows/tfc-speculative-run.yml` (pull requests) and `.github/workflows/tfc-apply-run.yml` (post-merge applies).
+- Push changes to the `main` branch to trigger the apply workflow automatically once the pull request pipeline succeeds.
 
 3. **Manual Deployment**
 

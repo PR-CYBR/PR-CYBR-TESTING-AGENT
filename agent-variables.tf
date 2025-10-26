@@ -78,3 +78,81 @@ variable "AGENT_COLLAB" {
   sensitive   = true
   description = "Token for governance, discussions, issues, project boards"
 }
+
+# --- GitHub / Terraform Cloud Authentication ---
+variable "GITHUB_TOKEN" {
+  type        = string
+  sensitive   = true
+  description = "GitHub token used by automation workflows"
+}
+
+variable "TFC_TOKEN" {
+  type        = string
+  sensitive   = true
+  description = "Terraform Cloud API token for workspace operations"
+}
+
+# --- Docker Publishing ---
+variable "PR_CYBR_DOCKER_USER" {
+  type        = string
+  description = "Service account username for Docker Hub publishing"
+}
+
+variable "PR_CYBR_DOCKER_PASS" {
+  type        = string
+  sensitive   = true
+  description = "Service account password for Docker Hub publishing"
+}
+
+# --- Notion Integrations ---
+variable "NOTION_API_TOKEN" {
+  type        = string
+  sensitive   = true
+  description = "API token for Notion automation access"
+}
+
+variable "NOTION_SYNC_PLAN" {
+  type        = string
+  description = "JSON sync plan controlling Notion synchronization"
+}
+
+variable "NOTION_TOKEN" {
+  type        = string
+  sensitive   = true
+  description = "Legacy Notion integration token referenced by workflows"
+}
+
+variable "NOTION_DISCUSSIONS_ARC_DB_ID" {
+  type        = string
+  description = "Database ID for the discussions archive board"
+}
+
+variable "NOTION_ISSUES_BACKLOG_DB_ID" {
+  type        = string
+  description = "Database ID for the issues backlog board"
+}
+
+variable "NOTION_KNOWLEDGE_FILE_DB_ID" {
+  type        = string
+  description = "Database ID for the knowledge file catalog"
+}
+
+variable "NOTION_PAGE_ID" {
+  type        = string
+  description = "Landing page identifier for workspace context"
+}
+
+variable "NOTION_PR_BACKLOG_DB_ID" {
+  type        = string
+  description = "Database ID for the pull request backlog board"
+}
+
+variable "NOTION_PROJECT_BOARD_BACKLOG_DB_ID" {
+  type        = string
+  description = "Database ID for the project board backlog"
+}
+
+variable "NOTION_TASK_BACKLOG_DB_ID" {
+  type        = string
+  description = "Database ID for the task backlog board"
+}

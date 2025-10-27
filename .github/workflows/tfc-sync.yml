@@ -13,19 +13,33 @@ permissions:
 jobs:
   terraform:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./infra
+    env:
+      TF_VAR_AGENT_ACTIONS: ${{ secrets.AGENT_ACTIONS }}
+      TF_VAR_NOTION_DISCUSSIONS_ARC_DB_ID: ${{ vars.NOTION_DISCUSSIONS_ARC_DB_ID }}
+      TF_VAR_NOTION_ISSUES_BACKLOG_DB_ID: ${{ vars.NOTION_ISSUES_BACKLOG_DB_ID }}
+      TF_VAR_NOTION_KNOWLEDGE_FILE_DB_ID: ${{ vars.NOTION_KNOWLEDGE_FILE_DB_ID }}
+      TF_VAR_NOTION_PAGE_ID: ${{ vars.NOTION_PAGE_ID }}
+      TF_VAR_NOTION_PR_BACKLOG_DB_ID: ${{ vars.NOTION_PR_BACKLOG_DB_ID }}
+      TF_VAR_NOTION_PROJECT_BOARD_BACKLOG_DB_ID: ${{ vars.NOTION_PROJECT_BOARD_BACKLOG_DB_ID }}
+      TF_VAR_NOTION_TASK_BACKLOG_DB_ID: ${{ vars.NOTION_TASK_BACKLOG_DB_ID }}
+      TF_VAR_NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+      TF_VAR_TFC_TOKEN: ${{ secrets.TFC_TOKEN }}
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}  # PAT stored in TFC
+          token: ${{ secrets.GITHUB_TOKEN }}
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
           cli_config_credentials_token: ${{ secrets.TFC_TOKEN }}
       - name: Terraform Init
-        run: terraform init
+        run: terraform init -input=false -no-color
       - name: Terraform Plan
         run: terraform plan -input=false -no-color
       - name: Terraform Apply
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        run: terraform apply -auto-approve -input=false
+        run: terraform apply -auto-approve -input=false -no-color

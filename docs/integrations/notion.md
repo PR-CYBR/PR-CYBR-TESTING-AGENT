@@ -4,9 +4,9 @@
 This document outlines how the PR-CYBR testing agent synchronises metadata with
 Notion. The integration uses a scripted dispatcher (`scripts/notion_sync.py`)
 to coordinate specific update operations such as page and database property
-updates. Sync plans are provided as JSON either through the
-`config/notion_sync_plan.json` file or the `NOTION_SYNC_PLAN` environment
-variable.
+updates. Sync plans are provided as JSON through the
+`config/notion_sync_plan.json` file so that Terraform Cloud secrets remain the
+source of truth for credentials only.
 
 ## Branching Expectations
 * All integration updates must be staged from a dedicated feature branch off of
@@ -29,8 +29,8 @@ variable.
 * The `Notion Sync` workflow requests the minimal required GitHub token
   permissions (`contents: read`) to fetch repository content only.
 * Avoid granting write or administrative scopes to the workflow. Store the
-  Notion token in GitHub secrets and load it only for the step that performs the
-  real sync.
+  Notion token in the `NOTION_TOKEN` GitHub secret and load it only for the step
+  that performs the real sync.
 
 ## Notion Integration Permissions
 * Provision the Notion integration with the narrowest access scope possible—

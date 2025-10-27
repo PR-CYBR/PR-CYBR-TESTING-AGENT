@@ -138,11 +138,8 @@ def build_default_dispatcher() -> NotionSyncDispatcher:
     return dispatcher
 
 
-def load_sync_plan(plan_path: Optional[Path], raw_plan: Optional[str], logger: logging.Logger) -> List[MutableMapping[str, Any]]:
-    if raw_plan:
-        logger.debug("Loading sync plan from NOTION_SYNC_PLAN environment variable")
-        data = json.loads(raw_plan)
-    elif plan_path and plan_path.exists():
+def load_sync_plan(plan_path: Optional[Path], logger: logging.Logger) -> List[MutableMapping[str, Any]]:
+    if plan_path and plan_path.exists():
         logger.debug("Loading sync plan from %s", plan_path)
         with plan_path.open("r", encoding="utf-8") as fp:
             data = json.load(fp)
@@ -201,17 +198,16 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
     args = parse_args(argv)
     configure_logging(args.log_level)
 
-    raw_plan = os.getenv("NOTION_SYNC_PLAN")
-    plan = load_sync_plan(args.plan, raw_plan, LOGGER)
+    plan = load_sync_plan(args.plan, LOGGER)
 
     dispatcher = build_default_dispatcher()
 
     if args.dry_run:
         client: NotionClientProtocol = DummyClient()
     else:
-        token = os.getenv("NOTION_API_TOKEN")
+        token = os.getenv("NOTION_TOKEN")
         if not token:
-            raise NotionSyncError("NOTION_API_TOKEN environment variable is required for real sync runs")
+            raise NotionSyncError("NOTION_TOKEN environment variable is required for real sync runs")
         client = NotionClient(token=token)
 
     execute_sync_plan(plan, dispatcher, client, dry_run=args.dry_run, logger=LOGGER)

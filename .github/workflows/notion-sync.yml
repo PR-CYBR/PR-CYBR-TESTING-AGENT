@@ -39,8 +39,7 @@ jobs:
 
       - name: Execute Notion sync
         env:
-          NOTION_API_TOKEN: ${{ secrets.NOTION_API_TOKEN }}
-          NOTION_SYNC_PLAN: ${{ secrets.NOTION_SYNC_PLAN }}
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
         run: |
           DRY_RUN_FLAG=""
           if [ "${{ inputs.dry-run }}" = "true" ]; then
